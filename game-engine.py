@@ -1,7 +1,5 @@
 import math
-import time
 import random
-import pygame
 
 
 game_data = {}
@@ -61,16 +59,16 @@ class Game_logic:
         self.frame = 0
         self.respawn_time = 100
     
-    def set_control(self, player, key, state):
-        if player in self.players and key in self.control[player]:
-            self.control[player][key] = state
+    def set_control(self, player, key, state):       #set the control of the player
+        if player in self.players and key in self.control[player]:    # player = 1 or 2, key = 'w', 'a', 'd'
+            self.control[player][key] = state       # state = True or False
     
-    def check_collision(self, ball, food):
-        for player in self.players.values():
+    def check_collision(self, ball, food):          # check if the ball and food collide
+        for player in self.players.values():        # player = 1 or 2
             distance = math.sqrt((player.x - self.food.x) ** 2 + (player.y - self.food.y) ** 2)
             return distance < (ball.radius + food.radius)
 
-    def update(self):
+    def update(self):       # update the game - move the ball, check collision, respawn food
         self.frame += 1
         game_event = {"collision": [], "respawn": []}
         for player_id, ball in self.players.items():
@@ -98,7 +96,7 @@ class Game_logic:
         
         return game_event
     
-    def get_game_data(self):
+    def get_game_data(self):       # get the game data
          return {
             "ball":{
             pids:{ 
@@ -111,12 +109,12 @@ class Game_logic:
                 }
                 for pids, ball in self.players.items()
                 },
-                "foods": {
-                    "radius": self.food.radius,
-                    "x": self.food.x,
-                    "y": self.food.y     
-                },
-                "frame": self.frame
+            "foods": {
+                "radius": self.food.radius,
+                "x": self.food.x,
+                "y": self.food.y     
+            },
+            "frame": self.frame
             }
 
           
