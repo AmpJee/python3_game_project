@@ -2,8 +2,12 @@ import math
 import time
 import random
 
+game_data = {}
+
 class Ball:
-    def __init__(self, x, y,):
+    def __init__(self, radius, color, x, y,):
+        self.radius = radius
+        self.color = color
         self.x = x
         self.y = y
         self.speed = 0
@@ -28,12 +32,12 @@ class Ball:
 
         self.x = min(max(self.x, 0), 800)
         self.y = min(max(self.y, 0), 600)
+
     
-    def get_status(self):
-        print(f"Ball position: {self.x}, {self.y} ball speed: {self.speed} ball direction: {self.direction}")
 
 class Food:
-    def __init__(self, x, y):
+    def __init__(self,):
+        self.radius = 5
         self.x = random.randint(0 + 5, 800 - 5)
         self.y = random.randint(0 + 5, 600 - 5)
 
@@ -41,50 +45,77 @@ class Food:
         self.x = random.randint(0 + 5, 800 - 5)      # +5,-5 -> I don't want it to spawn on the edge
         self.y = random.randint(0 + 5, 600 - 5)
 
-def test_ball():
-    ball = Ball(400, 300)
-    food = Food(400, 300)
-    frame = 0
+class Game_logic:
+    def __init__(self):
+        self.players = {
+            1 : Ball(15, (255, 0, 0), 400, 300),
+            2 : Ball(15, (0, 255, 0), 400, 300)
+        }
+        self.control = {
+            1 : {'w': False, 'a': False, 'd': False},
+            2 : {'w': False, 'a': False, 'd': False}
+        }
+        self.food = Food()
+        self.frame = 0
+        self.respawn_time = 100
     
-    try:
-        while True:
-            input_player1 = random.choice([[], ['w'], ['a'], ['d'], ['w', 'a'], ['w', 'd']])
-            input_player2 = random.choice([[], ['w'], ['a'], ['d'], ['w', 'a'], ['w', 'd']])
-            if 'w' in input_player1:
+    def set_control(self, player, key, state):
+        if player in self.players and key in self.control[player]:
+            self.control[player][key] = state
+    
+    def check_collision(self, ball, food):
+        for player in self.players.values():
+            distance = math.sqrt((player.x - self.food.x) ** 2 + (player.y - self.food.y) ** 2)
+            return distance < (ball.radius + food.radius)
+
+    def update(self):
+        self.frame += 1
+        game_event = {"collision": [], "respawn": []}
+        for player_id, ball in self.players.items():
+            control = self.control[player_id]
+            if control['w']:
                 ball.move_forward()
             else:
                 ball.stop_moving()
-                
-            if 'a' in input_player1:
+            
+            if control['a']:
                 ball.turn_left()
-            if 'd' in input_player1:
+            
+            if control['d']:
                 ball.turn_right()
-           
+            
             ball.move()
-            
-            frame += 1
-            print("\nFrame", frame)
-            print(ball.get_status())
-            print("food position: ", food.x, food.y)
-            if frame % 10 == 0:
-                food.respawn()
-                print("food respawned")
 
-            
-            time.sleep(0.1)
-            
-    except KeyboardInterrupt:
-        pass
+            if self.check_collision(self.players[1], self.food):
+                game_event['collision'].append(1)
+                self.players[1].speed += 1
+
+        if self.frame % self.respawn_time == 0:
+            self.food.respawn()
+            game_event['respawn'].append(1)
+        
+        return game_event
     
-    print("\nTest ended")
+    def get_game_data(self):
+         return {
+            "ball":{
+            pids:{ 
+                "radius": ball.radius,
+                "color": ball.color,
+                "x": ball.x,
+                "y": ball.y,
+                "speed": ball.speed,
+                "direction": ball.direction,
+                }
+                for pids, ball in self.players.items()
+                },
+                "foods": {
+                    "radius": self.food.radius,
+                    "x": self.food.x,
+                    "y": self.food.y     
+                },
+                "frame": self.frame
+            }
 
+          
     
-    
-
-if __name__ == "__main__":
-    test_ball()
-
-
-
-    
-
