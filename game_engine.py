@@ -89,6 +89,7 @@ class Game_logic:
             if self.check_collision(self.players[1], self.food):
                 game_event['collision'].append(1)
                 self.players[1].speed += 1
+                self.food.respawn()
 
         if self.frame % self.respawn_time == 0:
             self.food.respawn()
