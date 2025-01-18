@@ -2,138 +2,90 @@ import socket
 import sys
 import threading
 import json
-import time
-from game_engine import Game_logic
+import pygame
+from graphic import GameWindow
 
-class GameServer:
-    def __init__(self, host='0.0.0.0', port=21002):
+class GameClient:
+    def __init__(self, host="127.0.0.1", port=21002):
         self.host = host
         self.port = port
         self.socket = None
-        self.clients = []
-        self.client_ids = {}
-        self.clients_lock = threading.Lock()
-        self.game_logic = Game_logic()
+        self.player_id = None
         self.running = True
+        self.window = None
+        self.BUFFER_SIZE = 1024
+        self.input_lock = threading.Lock()
 
-    def broadcast(self, game_data):
-        with self.clients_lock:
-            disconnected_clients = []
-            for client in self.clients:
-                try:
-                    client.sendall((json.dumps(game_data) + "\n").encode())
-                except:
-                    print("Error sending data to client")
-                    disconnected_clients.append(client)
-            
-            for client in disconnected_clients:
-                self.remove_client(client)
-
-    def remove_client(self, client_socket):
-        with self.clients_lock:
-            if client_socket in self.clients:
-                player_id = self.client_ids.get(client_socket)
-                self.clients.remove(client_socket)
-                if client_socket in self.client_ids:
-                    del self.client_ids[client_socket]
-                if player_id in self.game_logic.players:
-                    del self.game_logic.players[player_id]
-                if player_id in self.game_logic.control:
-                    del self.game_logic.control[player_id]
-                print(f"Player {player_id} disconnected.")
-        
+    def connect(self):
         try:
-            client_socket.close()
-        except:
-            pass
-
-    def handle_client(self, client_socket, player_id):
-        with self.clients_lock:
-            self.clients.append(client_socket)
-            self.client_ids[client_socket] = player_id
-        
-        try:
-            # Send initial player ID
-            init_message = json.dumps({"player_id": player_id}) + "\n"
-            client_socket.sendall(init_message.encode())
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.host, self.port))
             
-            # Handle incoming messages
-            buffer = ""
-            while self.running:
-                data = client_socket.recv(1024).decode()
+            # Receive initial player ID
+            init_data = json.loads(self.socket.recv(self.BUFFER_SIZE).decode())
+            self.player_id = init_data["player_id"]
+            print(f"Connected as Player {self.player_id}")
+            
+            # Start receive thread
+            self.receive_thread = threading.Thread(target=self.receive_data, daemon=True)
+            self.receive_thread.start()
+            return True
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            if self.socket:
+                self.socket.close()
+            return False
+
+    def send_input(self, key, state):
+        if not self.socket or not self.running:
+            return
+            
+        with self.input_lock:
+            try:
+                message = json.dumps({
+                    "type": "input",
+                    "key": key,
+                    "state": state
+                }) + "\n"
+                self.socket.sendall(message.encode())
+            except:
+                self.running = False
+
+    def receive_data(self):
+        buffer = ""
+        while self.running:
+            try:
+                data = self.socket.recv(self.BUFFER_SIZE).decode()
                 if not data:
                     break
-                
+                    
                 buffer += data
                 while "\n" in buffer:
                     message, buffer = buffer.split("\n", 1)
                     try:
-                        control_data = json.loads(message)
-                        if control_data["type"] == "input":
-                            self.game_logic.set_control(
-                                player_id,
-                                control_data["key"],
-                                control_data["state"]
-                            )
+                        game_state = json.loads(message)
+                        if self.window:
+                            self.window.update_game_state(game_state)
                     except json.JSONDecodeError:
-                        print(f"Invalid JSON from player {player_id}")
+                        print("Invalid game state received")
                         continue
-        except:
-            print(f"Connection error with Player {player_id}")
-        finally:
-            self.remove_client(client_socket)
-
-    def game_loop(self):
-        while self.running:
-            try:
-                game_events = self.game_logic.update()
-                game_data = self.game_logic.get_game_data()
-                game_data['events'] = game_events
-                self.broadcast(game_data)
-                time.sleep(0.016)  # ~60 FPS
-            except Exception as e:
-                print(f"Error in game loop: {e}")
+            except:
+                break
+        
+        self.running = False
 
     def run(self):
+        if not self.connect():
+            return
+            
         try:
-            # Create and bind socket
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.bind((self.host, self.port))
-            self.socket.listen()
-            print(f"Server listening on {self.host}:{self.port}")
-
-            # Start game loop
-            game_thread = threading.Thread(target=self.game_loop, daemon=True)
-            game_thread.start()
-
-            # Accept new connections
-            player_id = 1
-            while self.running:
-                try:
-                    client_socket, addr = self.socket.accept()
-                    print(f"New connection from {addr}")
-                    client_thread = threading.Thread(
-                        target=self.handle_client,
-                        args=(client_socket, player_id),
-                        daemon=True
-                    )
-                    client_thread.start()
-                    player_id += 1
-                except socket.error:
-                    break
-
-        except Exception as e:
-            print(f"Server error: {e}")
+            self.window = GameWindow(self)
+            self.window.run()
         finally:
             self.running = False
             if self.socket:
                 self.socket.close()
-            print("Server shutdown complete")
 
 if __name__ == "__main__":
-    server = GameServer()
-    try:
-        server.run()
-    except KeyboardInterrupt:
-        print("\nShutting down server...")
+    client = GameClient()
+    client.run()
