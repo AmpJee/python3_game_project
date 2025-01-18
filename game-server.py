@@ -53,11 +53,9 @@ class GameServer:
             self.client_ids[client_socket] = player_id
         
         try:
-            # Send initial player ID
             init_message = json.dumps({"player_id": player_id}) + "\n"
             client_socket.sendall(init_message.encode())
             
-            # Handle incoming messages
             buffer = ""
             while self.running:
                 data = client_socket.recv(1024).decode()
@@ -96,18 +94,15 @@ class GameServer:
 
     def run(self):
         try:
-            # Create and bind socket
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.socket.bind((self.host, self.port))
             self.socket.listen()
             print(f"Server listening on {self.host}:{self.port}")
 
-            # Start game loop
             game_thread = threading.Thread(target=self.game_loop, daemon=True)
             game_thread.start()
 
-            # Accept new connections
             player_id = 1
             while self.running:
                 try:
