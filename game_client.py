@@ -3,7 +3,8 @@ import sys
 import threading
 import json
 import pygame
-
+import logging
+from logging.handlers import RotatingFileHandler
 from graphic import GameWindow
 
 class GameClient:
@@ -49,6 +50,7 @@ class GameClient:
                 "key": key,
                 "state": state
             }) + "\n"
+            logger.info(f"Sending input: key={key}, state={state}")
             try:
                 self.socket.sendall(message.encode())
             except:
@@ -86,5 +88,11 @@ class GameClient:
                 self.socket.close()
 
 if __name__ == "__main__":
+    logger = logging.getLogger("game_client")
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler = RotatingFileHandler("game_client.log", maxBytes=1024*1024, backupCount=5)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     client = GameClient()
     client.run()
