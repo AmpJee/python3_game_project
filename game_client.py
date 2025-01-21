@@ -3,6 +3,7 @@ import sys
 import threading
 import json
 import pygame
+
 from graphic import GameWindow
 
 class GameClient:
@@ -17,6 +18,8 @@ class GameClient:
         self.BUFFER_SIZE = 1024
         self.input_queue = []
         self.input_lock = threading.Lock()
+
+    
 
     def connect(self):
         try:

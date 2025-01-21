@@ -3,6 +3,9 @@ import sys
 import threading
 import json
 import time
+import logging
+import datetime
+from logging.handlers import RotatingFileHandler
 from game_engine import Game_logic
 
 class GameServer:
@@ -15,6 +18,13 @@ class GameServer:
         self.clients_lock = threading.Lock()
         self.game_logic = Game_logic()
         self.running = True
+        
+
+        logging.basicConfig(level=logging.DEBUG)
+        handler = RotatingFileHandler("server.log", maxBytes=100000, backupCount=1)
+        handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+        logging.getLogger().addHandler(handler)
+
 
     def broadcast(self, game_data):
         with self.clients_lock:
@@ -86,6 +96,8 @@ class GameServer:
             try:
                 game_events = self.game_logic.update()
                 game_data = self.game_logic.get_game_data()
+                if game_data['frame'] % 60 == 0:
+                    logging.info("Game state: %s ", game_data)
                 game_data['events'] = game_events
                 self.broadcast(game_data)
                 time.sleep(0.016)  # ~60 FPS
