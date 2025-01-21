@@ -4,6 +4,7 @@ import threading
 import json
 import time
 from game_engine import Game_logic
+from logging.handlers import RotatingFileHandler
 
 class GameServer:
     def __init__(self, host='0.0.0.0', port=21002):
@@ -127,6 +128,12 @@ class GameServer:
             print("Server shutdown complete")
 
 if __name__ == "__main__":
+    logger = logging.getLogger("game_server")
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler = RotatingFileHandler("game_client.log", maxBytes=1024*1024, backupCount=5)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     server = GameServer()
     try:
         server.run()
